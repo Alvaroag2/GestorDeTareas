@@ -1,0 +1,18 @@
+<nav>
+    <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="{% url 'pataton' %}">Pataton</a></li>
+        <li><a href="{% url 'tareas' %}">Tareas</a></li>
+        <li><a href="{% url 'usuarios' %}">Usuarios</a></li>
+        <li><a href="{% url 'crearTareas' %}">Crear Tareas</a></li>
+        <li><a href="{% url 'crearPatatones' %}">Crear Patatones</a></li>
+        <li><a href="{% url 'crearUsuarios' %}">Crear Usuarios</a></li>
+        <li><a href="{% url 'login' %}">Login</a></li>
+        <li><a href="{% url 'logout' %}">Logout</a></li>
+
+    </ul>
+</nav>
+
+
+{% block content %}
+{% endblock %}

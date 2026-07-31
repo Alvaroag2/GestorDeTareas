@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h1>Usuarios</h1>
+
+{% for user in usuario %}
+
+<article>
+<h1>{{user.username}}</h1>
+<form action="{% url 'eliminarUsuario' user.id %}" method="POST" style="display:inline;">
+    {% csrf_token %}
+    <button type="submit">❌ Eliminar</button>
+  </form>
+
+<form action="{% url 'editarUsuario' user.id %}" method="GET" style="display:inline;">
+    <button type="submit">✏️ Editar</button>
+</form>
+</article>
+
+{% endfor %}
+
+{% endblock %}

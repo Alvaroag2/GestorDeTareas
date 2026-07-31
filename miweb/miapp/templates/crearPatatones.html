@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1>Crear un nuevo Pataton</h1>
+
+<form action="" method="post">
+{{form.as_p}}
+{% csrf_token %}
+<button>Guardar</button>
+
+</form>
+
+{% endblock %}
