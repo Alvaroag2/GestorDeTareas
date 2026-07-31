@@ -100,16 +100,12 @@
     <button type="submit">❌ Eliminar</button>
   </form>
 
-<form action="{% url 'realizarTarea' tarea.id %}" method="POST" style="display:inline;">
-    {% csrf_token %}
-    <button>✓Hecha</button>
-  </form>
 
 <form action="{% url 'editarTarea' tarea.id %}" method="GET" style="display:inline;">
     <button type="submit">✏️ Editar</button>
 </form>
 
-<form action="{% url 'duplicarTarea' tarea.id %}" method="GET" style="display:inline;">
+<form action="{% url 'duplicarTarea' tarea.id %}" method="POST" style="display:inline;">
     <button type="submit">📋 Duplicar esta tarea</button>
 </form>
 

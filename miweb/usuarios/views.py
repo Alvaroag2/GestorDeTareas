@@ -1,5 +1,6 @@
+from django.contrib import messages
 from django.shortcuts import get_object_or_404, render , redirect
-from .models import Usuario
+from .models import Perfil, Usuario
 from .forms import CrearNuevoUsuario
 from .forms import EditarUsuario
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
@@ -34,12 +35,25 @@ def usuarios(request):
         # 'form': form
     # })
 
-
+@login_required
 def crearUsuarios(request):
+    es_admin = request.user.perfil.rol == Perfil.Rol.ADMINISTRADOR
+    es_jefe = request.user.perfil.rol == Perfil.Rol.JEFE_EQUIPO
+
+    if not (es_admin or es_jefe or request.user.is_superuser):
+        messages.error(request, "No tienes permisos para crear usuarios.")
+        return redirect('usuarios')  
+
     if request.method == 'POST':
         form = UserCreationForm(request.POST)
         if form.is_valid():
-            form.save() 
+            nuevo_usuario = form.save() 
+            rol_elegido = request.POST.get('rol')
+
+            Perfil.objects.create(
+                usuario=nuevo_usuario,
+                rol=rol_elegido
+            )
             return redirect('usuarios') 
     else:
         form = UserCreationForm()
@@ -55,6 +69,12 @@ def crearUsuarios(request):
 
 @login_required
 def eliminarUsuario(request, id):
+    es_admin = request.user.perfil.rol == Perfil.Rol.ADMINISTRADOR
+    es_jefe = request.user.perfil.rol == Perfil.Rol.JEFE_EQUIPO
+    
+    if not (es_admin or es_jefe or request.user.is_superuser):
+        messages.error(request, "No tienes permisos para crear usuarios.")
+        return redirect('usuarios')  
     usuario = get_object_or_404(User, id=id) 
     usuario.delete()
     return redirect('usuarios')
@@ -81,11 +101,25 @@ def eliminarUsuario(request, id):
 def editarUsuario(request, id):
     usuario = get_object_or_404(User, id=id)  
 
+    es_admin = request.user.perfil.rol == Perfil.Rol.ADMINISTRADOR
+    es_jefe = request.user.perfil.rol == Perfil.Rol.JEFE_EQUIPO
+    
+    if not (es_admin or es_jefe or request.user.is_superuser):
+        messages.error(request, "No tienes permisos para crear usuarios.")
+        return redirect('usuarios')  
+
     if request.method == 'POST':
         
         form = UserChangeForm(request.POST, instance=usuario)
         if form.is_valid():
-            form.save() 
+            
+            nuevo_usuario = form.save() 
+            rol_elegido = request.POST.get('rol')
+            
+            Perfil.objects.create(
+            usuario=nuevo_usuario,
+            rol=rol_elegido
+            )
             return redirect('usuarios')
     else:
         form = UserChangeForm(instance=usuario)
@@ -138,5 +172,7 @@ def login(request):
 
 # 2. Tu nuevo Logout
 def logout(request):
-    auth_logout(request)  #Cierra la sesión
-    return redirect('login')
+    if request.method == 'POST':
+        auth_logout(request)
+        return redirect('login')
+    return redirect('tareas')

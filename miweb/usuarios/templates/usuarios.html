@@ -3,6 +3,15 @@
 {% block content %}
 
 <h1>Usuarios</h1>
+{% if messages %}
+  <div class="messages">
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }}">
+        {{ message }}
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
 
 {% for user in usuario %}
 
@@ -13,7 +22,7 @@
     <button type="submit">❌ Eliminar</button>
   </form>
 
-<form action="{% url 'editarUsuario' user.id %}" method="GET" style="display:inline;">
+<form action="{% url 'editarUsuario' user.id %}" method="POST" style="display:inline;">
     <button type="submit">✏️ Editar</button>
 </form>
 </article>

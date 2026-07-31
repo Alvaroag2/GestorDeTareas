@@ -1,7 +1,10 @@
+from django.contrib import messages
 from django.shortcuts import redirect, render
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
+from django.contrib.auth.models import User
 
+from usuarios.models import Perfil
 from .models import Usuario
 from .models import Comentario, Pataton
 from .models import Tareas
@@ -69,8 +72,19 @@ def pataton(request):
 
 @login_required  #Si no está logueado django lo manda al login automaticamente que la direccion del login esta definida en settings
 def tareas(request):
-    mis_tareas = Tareas.objects.filter(usuario=request.user)
-    return render(request, 'tareas.html', {'tareas': mis_tareas})
+    es_admin = request.user.perfil.rol == Perfil.Rol.ADMINISTRADOR
+    es_jefe = request.user.perfil.rol == Perfil.Rol.JEFE_EQUIPO
+
+    
+    if es_admin or es_jefe or request.user.is_superuser:
+        lista_tareas = Tareas.objects.all()
+    else:
+        
+        lista_tareas = Tareas.objects.filter(usuario=request.user)
+
+    return render(request, 'tareas.html', {
+        'tareas': lista_tareas
+    })
 
 
 # def crearTareas(request): #Este es usando model.Forms haciendo manual
@@ -98,6 +112,14 @@ def tareas(request):
 
 @login_required
 def crearTareas(request):
+
+    es_admin = request.user.perfil.rol == Perfil.Rol.ADMINISTRADOR
+    es_jefe = request.user.perfil.rol == Perfil.Rol.JEFE_EQUIPO
+    
+    if not (es_admin or es_jefe or request.user.is_superuser):
+        messages.error(request, "No tienes permisos para crear usuarios.")
+        return redirect('usuarios')  
+
     if request.method == 'POST':
         form = CrearNuevaTarea(request.POST, request.FILES)
         if form.is_valid():
@@ -117,15 +139,23 @@ def eliminarTarea(request, id):
     tarea.delete()
     return redirect('tareas')
 
-@login_required
-def realizarTarea(request,id):
-    tarea=get_object_or_404(Tareas,id=id)
-    tarea.realizada = True
-    tarea.save()
-    return redirect('tareas')
+# @login_required
+# def realizarTarea(request,id):
+    # tarea=get_object_or_404(Tareas,id=id)
+    # tarea.realizada = True
+    # tarea.save()
+    # return redirect('tareas')
 
 @login_required
 def editarTarea(request, id):
+
+    es_admin = request.user.perfil.rol == Perfil.Rol.ADMINISTRADOR
+    es_jefe = request.user.perfil.rol == Perfil.Rol.JEFE_EQUIPO
+    
+    if not (es_admin or es_jefe or request.user.is_superuser):
+        messages.error(request, "No tienes permisos para crear usuarios.")
+        return redirect('usuarios')  
+
     tarea = get_object_or_404(Tareas, id=id)
 
     if request.method == 'POST':
@@ -282,6 +312,16 @@ def editarComentario(request, id):
 
 @login_required
 def duplicarTarea(request, tarea_id):
+    if request.method != 'POST':
+        return redirect('tareas')
+
+    es_admin = request.user.perfil.rol == Perfil.Rol.ADMINISTRADOR
+    es_jefe = request.user.perfil.rol == Perfil.Rol.JEFE_EQUIPO
+    
+    if not (es_admin or es_jefe or request.user.is_superuser):
+        messages.error(request, "No tienes permisos para crear usuarios.")
+        return redirect('usuarios')  
+
     tarea_original = get_object_or_404(Tareas, id=tarea_id, usuario=request.user)
 
     # 1. Guardar referencia a la imagen antes de clonar la instancia

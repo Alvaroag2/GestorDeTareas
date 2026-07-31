@@ -57,8 +57,13 @@ class Tareas(models.Model):
         restante = self.tiempo_estimado - self.tiempo_trabajado
         return max(restante, 0)
 
+    # def __str__(self):
+        # return self.titulo + "-" + self.descripcion + "-" + self.prioridad + "-" + self.estado + "-" + self.fecha_creacion + "-" + self.fecha_limite
+    
     def __str__(self):
-        return self.titulo + "-" + self.descripcion + "-" + self.prioridad + "-" + self.estado + "-" + self.fecha_creacion + "-" + self.fecha_limite
+        creacion = self.fecha_creacion.strftime('%d/%m/%Y')
+        limite = self.fecha_limite.strftime('%d/%m/%Y') if self.fecha_limite else "Sin fecha límite"
+        return f"{self.titulo} - Creada: {creacion} - Límite: {limite}"
     
 
 
