@@ -28,3 +28,4 @@ class Perfil(models.Model):
 
     def __str__(self):
         return self.usuario.username + "-" + self.get_rol_display()
+

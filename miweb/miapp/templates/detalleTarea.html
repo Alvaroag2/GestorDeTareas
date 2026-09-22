@@ -48,7 +48,7 @@
 <section>
   {% for comentario in comentarios %}
     <div style="background-color: #f4f4f4; padding: 10px; margin-bottom: 10px; border-radius: 5px;">
-      <p style="margin: 0;"><strong>{{ comentario.usuario.nombre }}</strong> <small style="color: gray;">- {{ comentario.fecha_creacion|date:"d/m/Y H:i" }}</small></p>
+      <p style="margin: 0;"><strong>{{ comentario.usuario.username }}</strong> <small style="color: gray;">- {{ comentario.fecha_creacion|date:"d/m/Y H:i" }}</small></p>
       <p style="margin: 5px 0 0 0;">{{ comentario.texto }}</p>
       {% if comentario.imagen %}
   <div style="margin-top: 15px;">

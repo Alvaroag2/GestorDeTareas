@@ -1,10 +1,15 @@
+import json
+
 from django.contrib import messages
+import requests
 from django.shortcuts import redirect, render
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.contrib.auth.models import User
 
-from usuarios.models import Perfil
+
+from usuarios.models import Perfil 
+from .models import Categoria
 from .models import Usuario
 from .models import Comentario, Pataton
 from .models import Tareas
@@ -18,398 +23,333 @@ from .forms import EditarPataton
 from .forms import EditarComentarioForm
 from decimal import Decimal
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import ensure_csrf_cookie
 
 # Create your views here.
-def hello(request):
-    titulo = "Jamsala Jamsal"
-    username = "AG2"
-    return render(request,'index.html',{
-        "titulo" : titulo,
-        "username" : username
-    })
+@ensure_csrf_cookie
+def api_categorias(request):
+    if request.method == 'GET':
+        categorias_qs = Categoria.objects.all()
+        data = []
+        for cat in categorias_qs:
+            data.append({
+                "id": cat.id,
+                "nombre": cat.nombre,
+                "descripcion": cat.descripcion,
+            })
+        return JsonResponse(data, safe=False, status=200)
 
-def helloWithParam(request,user):
-    return HttpResponse("<h1>Hello %s<h1>" %user)
-
-#def pataton(request):
-#    pataton = list(Pataton.objects.values())
-#    return JsonResponse(pataton, safe=False)
-
-#pataton sin Json
-def pataton(request):
-   pataton = Pataton.objects.all()
-   return render(request,'pataton.html',{
-       "pataton" : pataton
-   })
-
-# def tareas(request,id):
-    #tareas = Tareas.objects.get(id=id)
-    # tareas = get_object_or_404(Tareas,id = id)
-    # return HttpResponse("<h1>El titulo de tu tarea es %s<h1>" %tareas.titulo)
-
-# def tareas(request): # SIn filtrar por usuairo
-    #tareas = Tareas.objects.get(id=id)
-    # tareas = Tareas.objects.all()
-    # return render(request,'tareas.html',{
-    #    "tareas" : tareas
-    # })
-
-# def tareas(request):
-    #Comprobamos si hay un usuario logueado en la sesión
-    # usuario_id = request.session.get('usuario_id')
-# 
-    # 
-    # if not usuario_id:
-        # return redirect('login')
-# 
-    # 
-    # mis_tareas = Tareas.objects.filter(usuario_id=usuario_id)
-# 
-    # 
-    # return render(request, 'tareas.html', {
-        # 'tareas': mis_tareas
-    # })
-
-@login_required  #Si no está logueado django lo manda al login automaticamente que la direccion del login esta definida en settings
-def tareas(request):
-    es_admin = request.user.perfil.rol == Perfil.Rol.ADMINISTRADOR
-    es_jefe = request.user.perfil.rol == Perfil.Rol.JEFE_EQUIPO
-
+    elif request.method == 'POST':
+            try:
+                body = json.loads(request.body)
+                nombre = body.get('nombre')
+                descripcion = body.get('descripcion')
     
-    if es_admin or es_jefe or request.user.is_superuser:
-        lista_tareas = Tareas.objects.all()
-    else:
+                
+                nueva_categoria = Categoria.objects.create(
+                    nombre = nombre,
+                    descripcion = descripcion
+                )
+    
+    
+                return JsonResponse({
+                    "id": nueva_categoria.id,
+                    "nombre": nueva_categoria.nombre,
+                    "descripcion": nueva_categoria.descripcion
+                }, status=201)
+            except Exception as e:
+                return JsonResponse({"error": "Error al crear la categoria"}, status=400)
+    
         
-        lista_tareas = Tareas.objects.filter(usuario=request.user)
 
-    return render(request, 'tareas.html', {
-        'tareas': lista_tareas
-    })
+@ensure_csrf_cookie
+def api_categoria_detalle(request, id):
+    categoria = get_object_or_404(Categoria, id=id)
+
+    # GET /api/categorias/<id>/ -> Obtener categoria por ID
+    if request.method == 'GET':
+        return JsonResponse({
+            "id": categoria.id,
+            "nombre": categoria.nombre,
+            "descripcion": categoria.descripcion,
+        }, status=200)
 
 
-# def crearTareas(request): #Este es usando model.Forms haciendo manual
-    # if request.method == 'POST':
-        # Tareas.objects.create(titulo = request.POST["titulo"],descripcion = request.POST["descripcion"], pataton_id=1)
-        # return redirect('crearTareas')
-    # return render(request,'crearTareas.html',{
-        # "form" : CrearNuevaTarea()
-    # }) 
 
-# CON ModelForm (model = Tareas):
-# def crearTareas(request):
-    # if request.method == 'POST':
-        # form = CrearNuevaTarea(request.POST,request.FILES)
-        # if form.is_valid():
-            # tarea = form.save() 
-            # return redirect('tareas') 
-    # else:
-        # form = CrearNuevaTarea() #Lo crea vacio
-# 
-    # 
-    # return render(request, 'crearTareas.html', {
-        # 'form': form
-    # })
-
-@login_required
-def crearTareas(request):
-
-    es_admin = request.user.perfil.rol == Perfil.Rol.ADMINISTRADOR
-    es_jefe = request.user.perfil.rol == Perfil.Rol.JEFE_EQUIPO
+    elif request.method == 'PUT':
+            try:
+                body = json.loads(request.body)
+                categoria.nombre = body.get('nombre', categoria.nombre)
+                categoria.descripcion = body.get('descripcion', categoria.descripcion)
+                categoria.save()
     
-    if not (es_admin or es_jefe or request.user.is_superuser):
-        messages.error(request, "No tienes permisos para crear usuarios.")
-        return redirect('usuarios')  
-
-    if request.method == 'POST':
-        form = CrearNuevaTarea(request.POST, request.FILES)
-        if form.is_valid():
-            tarea = form.save()
-            return redirect('tareas')
-    else:
-        form = CrearNuevaTarea()
-
-    return render(request, 'crearTareas.html', {
-        'form': form
-    })
-
-
-@login_required
-def eliminarTarea(request, id):
-    tarea = get_object_or_404(Tareas, id=id, usuario=request.user)
-    tarea.delete()
-    return redirect('tareas')
-
-# @login_required
-# def realizarTarea(request,id):
-    # tarea=get_object_or_404(Tareas,id=id)
-    # tarea.realizada = True
-    # tarea.save()
-    # return redirect('tareas')
-
-@login_required
-def editarTarea(request, id):
-
-    es_admin = request.user.perfil.rol == Perfil.Rol.ADMINISTRADOR
-    es_jefe = request.user.perfil.rol == Perfil.Rol.JEFE_EQUIPO
     
-    if not (es_admin or es_jefe or request.user.is_superuser):
-        messages.error(request, "No tienes permisos para crear usuarios.")
-        return redirect('usuarios')  
+                return JsonResponse({
+                    "id": categoria.id,
+                    "nombre": categoria.nombre,
+                    "descripcion": categoria.descripcion
+                }, status=200)
+            except Exception as e:
+                return JsonResponse({"error": "Error al actualizar el usuario"}, status=400)
 
+
+    # DELETE /api/categoias/<id>/ -> Borrar categoria
+    elif request.method == 'DELETE':
+        categoria.delete()
+        return HttpResponse(status=204)
+    
+    return JsonResponse({"error": "Método no permitido"}, status=405)
+
+@ensure_csrf_cookie
+def api_tareas(request):
+    if request.method == 'GET':
+        #tareas_qs = Tareas.objects.select_related('usuario', 'categoria').all() #Trae el usuario y la categoria en una sola consulta
+
+        estado_param = request.GET.get('estado')
+        prioridad_param = request.GET.get('prioridad')
+        categoria_param = request.GET.get('categoria') or request.GET.get('categoria_id')
+        usuario_param = request.GET.get('usuario') or request.GET.get('usuario_id')
+
+        
+        MAPA_ESTADOS = {'pendiente': 'PEN', 'en proceso': 'PRO', 'completada': 'COM'}
+        MAPA_PRIORIDADES = {'baja': 'B', 'media': 'M', 'alta': 'A'}
+
+        
+        filtros = {}
+
+        if estado_param:
+            
+            estado_val = MAPA_ESTADOS.get(estado_param.lower(), estado_param) #Busca el parametro en el mapa y te lo devuelve, sino te da el valor por defecto
+            filtros['estado'] = estado_val #Busca el estado en la base de datos
+
+        if prioridad_param:
+            
+            prioridad_val = MAPA_PRIORIDADES.get(prioridad_param.lower(), prioridad_param)
+            filtros['prioridad'] = prioridad_val
+
+        if categoria_param:
+            filtros['categoria_id'] = categoria_param
+
+        if usuario_param:
+            filtros['usuario_id'] = usuario_param
+
+        
+        tareas_qs = Tareas.objects.filter(**filtros).select_related('categoria', 'usuario') #En Python poner ** delante de un diccionario al pasarlo a una función significa "desempaquetar el diccionario como argumentos".
+
+        data = []
+        for tar in tareas_qs:
+            data.append({
+                "id": tar.id,
+                "titulo": tar.titulo,
+                "descripcion": tar.descripcion,
+                "estado": tar.get_estado_display().lower(),  # Convierte 'PEN' -> 'pendiente'
+                "prioridad": tar.get_prioridad_display().lower(),  # Convierte 'A' -> 'alta'
+                "fecha_creacion": tar.fecha_creacion.strftime('%Y-%m-%d'),
+                "fecha_limite": tar.fecha_limite.strftime('%Y-%m-%d') if tar.fecha_limite else None,
+                "usuario": {
+                    "id": tar.usuario.id,
+                    "nombre": tar.usuario.first_name or tar.usuario.username
+                },
+                "categoria": {
+                    "id": tar.categoria.id,
+                    "nombre": tar.categoria.nombre
+                } if hasattr(tar, 'categoria') and tar.categoria else None
+            })
+        return JsonResponse(data, safe=False, status=200)
+    
+
+    elif request.method == 'POST':
+            try:
+                body = json.loads(request.body)
+                titulo = body.get('titulo')
+                descripcion = body.get('descripcion')
+                estado = body.get('estado', 'PEN')
+                prioridad = body.get('prioridad', 'M')
+                fecha_limite = body.get('fecha_limite')
+                categoria_id = body.get('categoria_id')
+                usuario_id = body.get('usuario_id')
+    
+                
+                nueva_tarea = Tareas.objects.create(
+                    titulo = titulo,
+                    descripcion = descripcion,
+                    estado = estado,
+                    prioridad = prioridad,
+                    fecha_limite = fecha_limite,
+                    categoria_id = categoria_id,
+                    usuario_id = usuario_id
+                )
+    
+                
+    
+                return JsonResponse({
+                    "id": nueva_tarea.id,
+                    "titulo": nueva_tarea.titulo,
+                    "descripcion": nueva_tarea.descripcion,
+                    "estado": nueva_tarea.estado,
+                    "prioridad": nueva_tarea.prioridad,
+                    "fecha_creacion": nueva_tarea.fecha_creacion.strftime('%Y-%m-%d'),
+                    "fecha_limite": nueva_tarea.fecha_limite,
+                    "categoria": {
+                        "id": nueva_tarea.categoria.id,
+                        "nombre": nueva_tarea.categoria.nombre
+                    },
+                    "usuario": {
+                        "id": nueva_tarea.usuario.id,
+                        "nombre": nueva_tarea.usuario.first_name or nueva_tarea.usuario.username
+                    }
+                }, status=201)
+            except Exception as e:
+                
+                print("❌ ERROR EN POST /api/tareas/:", str(e))
+                return JsonResponse({"error": str(e)}, status=400)
+            
+    
+        #return JsonResponse({"error": "Método no permitido"}, status=405)
+
+@ensure_csrf_cookie
+def api_tareas_detalle(request, id):
     tarea = get_object_or_404(Tareas, id=id)
-
-    if request.method == 'POST':
+    if request.method == 'GET':
         
-        form = EditarTarea(request.POST, request.FILES , instance=tarea, )
-        if form.is_valid():
-            form.save() 
-            return redirect('tareas')
-    else:
-        # Petición GET: le pasamos 'instance=tarea' para que cargue los datos actuales
-        form = EditarTarea(instance=tarea)
 
-    return render(request, 'editarTarea.html', {
-        'form': form,
-        'tarea': tarea
-    })
+        
+        
+            return JsonResponse({
+                "id": tarea.id,
+                "titulo": tarea.titulo,
+                "descripcion": tarea.descripcion,
+                "estado": tarea.get_estado_display().lower(),  # Convierte 'PEN' -> 'pendiente'
+                "prioridad": tarea.get_prioridad_display().lower(),  # Convierte 'A' -> 'alta'
+                "fecha_creacion": tarea.fecha_creacion.strftime('%Y-%m-%d'),
+                "fecha_limite": tarea.fecha_limite.strftime('%Y-%m-%d') if tarea.fecha_limite else None,
+                "usuario": {
+                    "id": tarea.usuario.id,
+                    "nombre": tarea.usuario.first_name or tarea.usuario.username
+                },
+                "categoria": {
+                    "id": tarea.categoria.id,
+                    "nombre": tarea.categoria.nombre
+                } if hasattr(tarea, 'categoria') and tarea.categoria else None
+            })
 
-# def buscarTarea(request):
-    # usuario_id = request.session.get('usuario_id')
-    # if not usuario_id:
-        # return redirect('login')
-# 
-    # 
-    # busqueda = request.GET.get('q', '')
-    # prioridad_filtro = request.GET.get('prioridad', '')  
-    # estado_filtro = request.GET.get('estado', '')        
-# 
-#    
-    # mis_tareas = Tareas.objects.filter(usuario_id=usuario_id)
-# 
-#    
-    # if busqueda:
-        # mis_tareas = mis_tareas.filter(titulo__icontains=busqueda)
-        # 
-    # if prioridad_filtro:                                  
-        # mis_tareas = mis_tareas.filter(prioridad=prioridad_filtro)
-        # 
-    # if estado_filtro:                                     
-        # mis_tareas = mis_tareas.filter(estado=estado_filtro)
-# 
-    # 
-    # return render(request, 'tareas.html', {
-        # 'tareas': mis_tareas,
-        # 'busqueda': busqueda,
-        # 'prioridad_filtro': prioridad_filtro,             
-        # 'estado_filtro': estado_filtro,                   
-    # })
 
-@login_required
-def buscarTarea(request):
-    busqueda = request.GET.get('q', '')
-    prioridad_filtro = request.GET.get('prioridad', '')
-    estado_filtro = request.GET.get('estado', '')
-
+    elif request.method == 'PUT':
+            try:
+                body = json.loads(request.body)
+                tarea.titulo = body.get('titulo', tarea.titulo)
+                tarea.descripcion = body.get('descripcion', tarea.descripcion)
+                tarea.estado = body.get('estado', tarea.estado)
+                tarea.prioridad = body.get('prioridad', tarea.prioridad)
+                tarea.fecha_limite = body.get('fecha_limite', tarea.fecha_limite)
+                cat_id = body.get('categoria_id')
+                if cat_id is not None:
+                    tarea.categoria = Categoria.objects.get(id=cat_id)
+                usr_id = body.get('usuario_id')
+                if usr_id is not None:
+                    tarea.usuario = User.objects.get(id=usr_id)
+                tarea.save()
     
-    mis_tareas = Tareas.objects.filter(usuario=request.user)
-
-    if busqueda:
-        mis_tareas = mis_tareas.filter(titulo__icontains=busqueda)
-        
-    if prioridad_filtro:
-        mis_tareas = mis_tareas.filter(prioridad=prioridad_filtro)
-        
-    if estado_filtro:
-        mis_tareas = mis_tareas.filter(estado=estado_filtro)
-
-    return render(request, 'tareas.html', {
-        'tareas': mis_tareas,
-        'busqueda': busqueda,
-        'prioridad_filtro': prioridad_filtro,
-        'estado_filtro': estado_filtro,
-    })
-
-# def detalleTarea(request, tarea_id):
-    # usuario_id = request.session.get('usuario_id')
-    # if not usuario_id:
-        # return redirect('login')
-# 
-    # tarea = get_object_or_404(Tareas, id=tarea_id, usuario_id=usuario_id)
-# 
-    # if request.method == 'POST':
-        # texto_comentario = request.POST.get('texto', '').strip()
-        # imagen_comentario = request.FILES.get('imagen')
-        # 
-        # if texto_comentario or imagen_comentario:
-            # usuario_instancia = Usuario.objects.get(id=usuario_id)
-            # Comentario.objects.create(
-                # texto=texto_comentario,
-                # imagen=imagen_comentario,
-                # tarea=tarea,
-                # usuario=usuario_instancia
-            # )
-            # return redirect('detalleTarea', tarea_id=tarea.id)
-# 
-    # comentarios = tarea.comentarios.all().order_by('-fecha_creacion')
-# 
-    # return render(request, 'detalleTarea.html', {
-        # 'tarea': tarea,
-        # 'comentarios': comentarios
-    # })
-
-@login_required
-def detalleTarea(request, tarea_id):
-    tarea = get_object_or_404(Tareas, id=tarea_id, usuario=request.user)
-
-    if request.method == 'POST':
-        texto_comentario = request.POST.get('texto', '').strip()
-        imagen_comentario = request.FILES.get('imagen')
-        
-        if texto_comentario or imagen_comentario:
-            Comentario.objects.create(
-                texto=texto_comentario,
-                imagen=imagen_comentario,
-                tarea=tarea,
-                usuario=request.user 
-            )
-            return redirect('detalleTarea', tarea_id=tarea.id)
-
-    comentarios = tarea.comentarios.all().order_by('-fecha_creacion')
-
-    return render(request, 'detalleTarea.html', {
-        'tarea': tarea,
-        'comentarios': comentarios
-    })
-
-@login_required
-def eliminarComentario(request, id):
-    comentario = get_object_or_404(Comentario, id=id)
-    tarea_id = comentario.tarea.id
-    comentario.delete()
-    return redirect('detalleTarea', tarea_id=tarea_id)
-
-@login_required
-def editarComentario(request, id):
-    comentario = get_object_or_404(Comentario, id=id)
-    #usuario_id = request.session.get('usuario_id')
+                
     
-    # Comprobar permisos del usuario
-    #if usuario_id is None or int(comentario.usuario.id) != int(usuario_id):
-    #    return redirect('detalleTarea', tarea_id=comentario.tarea.id)
-
-    if request.method == 'POST':
-        form = EditarComentarioForm(request.POST, request.FILES, instance=comentario)
-        if form.is_valid():
-            form.save()  
-            return redirect('detalleTarea', tarea_id=comentario.tarea.id)
-    else:
-        form = EditarComentarioForm(instance=comentario)
-
-    return render(request, 'editarComentario.html', {
-        'form': form,
-        'comentario': comentario
-    })
-
-@login_required
-def duplicarTarea(request, tarea_id):
-    if request.method != 'POST':
-        return redirect('tareas')
-
-    es_admin = request.user.perfil.rol == Perfil.Rol.ADMINISTRADOR
-    es_jefe = request.user.perfil.rol == Perfil.Rol.JEFE_EQUIPO
+                return JsonResponse({
+                    "id": tarea.id,
+                    "titulo": tarea.titulo,
+                    "descripcion": tarea.descripcion,
+                    "estado": tarea.get_estado_display().lower(),  # Convierte 'PEN' -> 'pendiente'
+                    "prioridad": tarea.get_prioridad_display().lower(),  # Convierte 'A' -> 'alta'
+                    "fecha_creacion": tarea.fecha_creacion.strftime('%Y-%m-%d'),
+                    "fecha_limite": tarea.fecha_limite.strftime('%Y-%m-%d') if tarea.fecha_limite else None,
+                    "usuario": {
+                        "id": tarea.usuario.id,
+                        "nombre": tarea.usuario.first_name or tarea.usuario.username
+                    },
+                    "categoria": {
+                        "id": tarea.categoria.id,
+                        "nombre": tarea.categoria.nombre
+                    } if hasattr(tarea, 'categoria') and tarea.categoria else None
+                    
+                }, status=200)
+            except Exception as e:
+                return JsonResponse({"error": "Error al actualizar la tarea"}, status=400)
     
-    if not (es_admin or es_jefe or request.user.is_superuser):
-        messages.error(request, "No tienes permisos para crear usuarios.")
-        return redirect('usuarios')  
-
-    tarea_original = get_object_or_404(Tareas, id=tarea_id, usuario=request.user)
-
-    # 1. Guardar referencia a la imagen antes de clonar la instancia
-    imagen_original = tarea_original.imagen if hasattr(tarea_original, 'imagen') and tarea_original.imagen else None
-
-    # 2. Al poner pk e id en None django tratara al objeto como un registro nuevo
-    tarea_copia = tarea_original
-    tarea_copia.pk = None
-    tarea_copia.id = None
-    
-    
-    tarea_copia.titulo = tarea_original.titulo + " (Copia)"
-    
-    if imagen_original:
-        nombre_archivo = imagen_original.name.split('/')[-1] #Corta el texto por cada barra y te da el ultimo corte que ha hecho(Empieza a contar desde el final)
+    elif request.method == 'DELETE':
+            tarea.delete()
+            return HttpResponse(status=204)
         
+    return JsonResponse({"error": "Método no permitido"}, status=405)
         
-        tarea_copia.imagen.save(
-            "copia_" + nombre_archivo, 
-            ContentFile(imagen_original.read()), 
-            save=False
-        )
+    
+def api_mistareas(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "No has iniciado sesión"}, status=401)
+    
 
-    tarea_copia.save()
-
-    return redirect('tareas')
-
-@login_required
-def cambiarEstadoCronometro(request, tarea_id):
-    if request.method == 'POST':
-        tarea = get_object_or_404(Tareas, id=tarea_id)
+    tareas = Tareas.objects.filter(usuario=request.user).select_related('categoria', 'usuario')
         
-        # si ya estaba comenzado: Calculamos la diferencia y detenemos
-        if tarea.inicio_trabajo:
-            ahora = timezone.now()
-            diferencia = ahora - tarea.inicio_trabajo
+
+        
+    
+    lista_tareas = []
+    for tarea in tareas:
+        lista_tareas.append({
+            "id": tarea.id,
+            "titulo": tarea.titulo,
+            "descripcion": tarea.descripcion,
+            "estado": tarea.get_estado_display().lower(),
+            "prioridad": tarea.get_prioridad_display().lower(),
+            "fecha_creacion": tarea.fecha_creacion.strftime('%Y-%m-%d'),
+            "fecha_limite": str(tarea.fecha_limite) if tarea.fecha_limite else None,
+            "usuario": {
+                "id": tarea.usuario.id,
+                "nombre": tarea.usuario.first_name or tarea.usuario.username
+            },
+            "categoria": {
+                "id": tarea.categoria.id,
+                "nombre": tarea.categoria.nombre
+            } if tarea.categoria else None
+        })
+
+        #safe=False permite listas en JsonResponse(Es obligatorio)
+        return JsonResponse(lista_tareas, safe=False, status=200) 
+
+
+def comprobarfestivo(request, id):
+    tarea = get_object_or_404(Tareas, id=id)
+    if not tarea.fecha_limite:
+        return JsonResponse({
+            "es_festivo": False,
+            "festivo": None,
+            "mensaje": "La tarea no tiene fecha límite asignada"
+        }, status=200)
+    fecha_str = str(tarea.fecha_limite)  
+    año = fecha_str.split('-')[0]
+    url = f"https://date.nager.at/api/v3/PublicHolidays/{año}/ES"
+
+    try:
+        
+        response = requests.get(url, timeout=5)
+
+        if response.status_code == 200:
+            festivos = response.json()
+
             
-            
-            horas_transcurridas = Decimal(str(diferencia.total_seconds() / 3600))
-            
-            # sumamos al tiempo trabajado y reseteamos el inicio
-            tarea.tiempo_trabajado += horas_transcurridas
-            tarea.inicio_trabajo = None
-            tarea.save()
-            
-        # si no habia empezado guardamos la hora actual
-        else:
-            tarea.inicio_trabajo = timezone.now()
-            tarea.save()
+            for festivo in festivos:
+                if festivo['date'] == fecha_str:
+                    return JsonResponse({
+                        "es_festivo": True,
+                        "festivo": festivo['localName']
+                    }, status=200)
 
-    return redirect('tareas')
+        # Si finaliza el bucle y no hubo coincidencias
+        return JsonResponse({
+            "es_festivo": False,
+            "festivo": None
+        }, status=200)
 
-
-def crearPataton(request):
-    if request.method == 'POST':
-        form = CrearNuevoPataton(request.POST)
-        if form.is_valid():
-            tarea = form.save() 
-            return redirect('pataton') 
-    else:
-        form = CrearNuevoPataton() 
-
-    
-    return render(request, 'crearPatatones.html', {
-        'form': form
-    })
-
-def eliminarPataton(request, id):
-    pataton = get_object_or_404(Pataton, id=id)
-    pataton.delete()
-    return redirect('pataton')
-
-def editarPataton(request, id):
-    pataton = get_object_or_404(Pataton, id=id)
-
-    if request.method == 'POST':
+    except requests.RequestException:
         
-        form = EditarPataton(request.POST, instance=pataton)
-        if form.is_valid():
-            form.save() 
-            return redirect('pataton')
-    else:
-        # Petición GET: le pasamos 'instance=tarea' para que cargue los datos actuales
-        form = EditarPataton(instance=pataton)
-
-    return render(request, 'editarPataton.html', {
-        'form': form,
-        'pataton': pataton
-    })
-
-
+        return JsonResponse({
+            "error": "No se pudo consultar el servicio externo de festivos"
+        }, status=503)

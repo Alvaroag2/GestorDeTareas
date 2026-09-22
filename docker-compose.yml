@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./miweb
+      dockerfile: Dockerfile
+    container_name: django_backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./miweb:/app
+      - /app/frontend # Excluye la carpeta frontend para que no la monte dos veces
+    environment:
+      - DEBUG=1
+
+  frontend:
+    build:
+      context: ./miweb/frontend
+      dockerfile: Dockerfile
+    container_name: react_frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./miweb/frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_URL=http://localhost:8000/api

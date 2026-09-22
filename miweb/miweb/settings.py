@@ -30,7 +30,7 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
 
 
 # Application definition
@@ -44,9 +44,11 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'miapp',
     'usuarios',
+    'corsheaders',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -139,3 +141,21 @@ MEDIA_ROOT = BASE_DIR / 'media'
 LOGIN_URL = 'login'              
 LOGIN_REDIRECT_URL = 'tareas'    
 LOGOUT_REDIRECT_URL = 'index'   
+# Configuración de dominios permitidos y soporte para cookies/sesión
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+]
+
+# Configuración explícita de cookies para desarrollo local
+CSRF_COOKIE_HTTPONLY = False  # PERMITE que JavaScript (Axios) lea la cookie 'csrftoken'
+CSRF_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SECURE = False   # Permite http sin SSL en desarrollo
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_DOMAIN = None  # Permite que la cookie se asocie dinámicamente a localhost

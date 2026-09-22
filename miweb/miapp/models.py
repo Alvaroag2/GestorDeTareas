@@ -45,6 +45,14 @@ class Tareas(models.Model):
     usuario = models.ForeignKey(User, on_delete=models.CASCADE) #El on_delete on cascade hace que si se borra algo que tiene relacion se borre aqui tambien
     imagen = models.ImageField(upload_to='tareas_imagenes/', null=True, blank=True)
 
+    categoria = models.ForeignKey(
+        'Categoria', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='tareas'
+    )
+
 
     @property
     def esta_vencida(self):
@@ -75,4 +83,12 @@ class Comentario(models.Model):
     usuario = models.ForeignKey(User, on_delete=models.CASCADE)
 
     def __str__(self):
-        return "Comentario de" + self.usuario.nombre + "en" + self.tarea.titulo
+        return "Comentario de" + self.usuario.username + "en" + self.tarea.titulo
+
+
+class Categoria(models.Model):
+    nombre = models.CharField(max_length=100)
+    descripcion = models.TextField(blank=True)
+
+    def __str__(self):
+        return self.nombre    
