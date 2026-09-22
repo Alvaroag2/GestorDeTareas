@@ -16,9 +16,15 @@ function getCookie(name) {
   return cookieValue;
 }
 
-const api = axios.create({
+/*const api = axios.create({
   baseURL: 'http://localhost:8000/api', // Servidor de Django
   withCredentials: true, // VITAL: Permite enviar cookies de sesión
+});*/
+
+const api = axios.create({
+  // Si existe la variable en Vercel la usa; si no, usa localhost
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
+  withCredentials: true, // Importante para sesiones/cookies
 });
 
 // Interceptor para adjuntar el Token CSRF en POST, PUT y DELETE
